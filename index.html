@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Attendance Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;color:#1a1a1a;background:#f5f5f5;min-height:100vh;position:relative;}
+.topbar{background:#fff;border-bottom:1px solid #e5e5e5;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:10}
+.topbar h1{font-size:18px;font-weight:600;color:#1a1a1a}
+.topbar p{font-size:12px;color:#666;margin-top:2px}
+.view-toggle{display:flex;background:#f0f0f0;border-radius:8px;padding:3px;gap:2px}
+.vt{font-size:12px;padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;color:#666;background:transparent;transition:all .15s;font-weight:500}
+.vt.active{background:#fff;color:#1a1a1a;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.container{max-width:900px;margin:0 auto;padding:20px}
+.view{display:none}.view.active{display:block}
+.btn{font-size:13px;padding:8px 18px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer;font-family:inherit;color:#1a1a1a;transition:all .15s;font-weight:500}
+.btn:hover{background:#f5f5f5}
+.btn.primary{background:#6264A7;border-color:#6264A7;color:#fff}
+.btn.primary:hover{background:#4F51A0}
+.btn.sm{padding:5px 12px;font-size:12px}
+
+/* Member form */
+.form-wrap{max-width:480px;margin:0 auto}
+.form-hero{text-align:center;padding:28px 0 20px}
+.form-hero h2{font-size:22px;font-weight:600;margin-bottom:6px}
+.form-hero p{font-size:14px;color:#666}
+.card{background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:22px}
+.fg{margin-bottom:16px}
+.fg label{display:block;font-size:12px;font-weight:600;color:#555;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+.fg select,.fg input[type=text]{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:13px;color:#1a1a1a;background:#fff;outline:none;transition:border-color .15s}
+.fg select:focus,.fg input[type=text]:focus{border-color:#6264A7;box-shadow:0 0 0 3px rgba(98,100,167,.12)}
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.mc{border:1.5px solid #e5e5e5;border-radius:10px;padding:12px;cursor:pointer;text-align:center;transition:all .15s;background:#fff}
+.mc:hover{border-color:#aaa;background:#fafafa}
+.mc.sel-WFO{border-color:#639922;background:#EAF3DE}
+.mc.sel-WFH{border-color:#378ADD;background:#E6F1FB}
+.mc-icon{width:36px;height:36px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center}
+.mc-lbl{font-size:13px;font-weight:600;color:#1a1a1a}
+.toast{border-radius:8px;padding:11px 14px;font-size:13px;margin-top:12px;display:none;font-weight:500}
+.toast.ok{background:#EAF3DE;border:1px solid #639922;color:#27500A}
+.toast.err{background:#FCEBEB;border:1px solid #E24B4A;color:#791F1F}
+/* Manager PIN */
+.pin-overlay{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(245,245,245,.97);z-index:100;align-items:center;justify-content:center;min-height:100vh;}
+.pin-overlay.active{display:flex;}
+.pin-box{background:#fff;border:1px solid #e5e5e5;border-radius:14px;padding:28px 24px;max-width:320px;width:90%;text-align:center;}
+.pin-box h2{font-size:18px;font-weight:600;margin-bottom:4px;}
+.pin-box p{font-size:13px;color:#888;margin-bottom:18px;}
+
+.pin-err-msg{font-size:12px;color:#E24B4A;font-weight:500;min-height:18px;margin-top:2px;}
+
+/* Manager stats */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat{background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:16px}
+.stat .lbl{font-size:12px;color:#666;margin-bottom:8px;font-weight:500}
+.stat .val{font-size:28px;font-weight:700;line-height:1;color:#1a1a1a}
+.stat .sub{font-size:11px;color:#888;margin-top:5px}
+.two-col{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:20px}
+.panel{background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:16px}
+.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.ph h3{font-size:14px;font-weight:600}
+.ph span{font-size:12px;color:#888}
+.mrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0}
+.mrow:last-child{border:none}
+.av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.mname{font-size:13px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mtime{font-size:11px;color:#888;flex-shrink:0;margin-right:6px}
+.pill{display:inline-block;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;flex-shrink:0}
+.p-WFO{background:#EAF3DE;color:#27500A}
+.p-WFH{background:#E6F1FB;color:#0C447C}
+.p-Pending{background:#f0f0f0;color:#888;border:1px solid #ddd}
+.bar-row{margin-bottom:10px}
+.bar-meta{display:flex;justify-content:space-between;font-size:12px;color:#555;margin-bottom:4px}
+.bar-meta strong{color:#1a1a1a}
+.bar-track{height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .6s ease}
+.pending-panel{background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:16px;margin-bottom:20px}
+.pchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pchip{background:#FFF3E0;border:1px solid #FB8C00;border-radius:20px;padding:4px 13px;font-size:12px;color:#E65100;font-weight:500}
+.all-done{background:#EAF3DE;border-radius:8px;padding:10px 14px;font-size:13px;color:#27500A;font-weight:600;width:100%}
+.hist-panel{background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:16px;margin-bottom:20px}
+.filter-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.filt-btns{display:flex;gap:5px}
+.fb{font-size:12px;padding:5px 13px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer;font-family:inherit;color:#666;font-weight:500}
+.fb.active{background:#6264A7;border-color:#6264A7;color:#fff}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:8px 10px;text-align:left;font-weight:600;color:#555;border-bottom:2px solid #e5e5e5;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+td{padding:8px 10px;border-bottom:1px solid #f0f0f0;color:#1a1a1a}
+tr:last-child td{border:none}
+tr:hover td{background:#fafafa}
+.empty-row{text-align:center;color:#888;padding:20px}
+@media(max-width:600px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .two-col{grid-template-columns:1fr}
+  .mode-grid{grid-template-columns:1fr 1fr}
+  table{font-size:11px}
+  th,td{padding:6px 7px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>Team Attendance</h1>
+    <p id="topdate"></p>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <div class="view-toggle">
+      <button class="vt active" id="vt-m" onclick="switchView('member')">My attendance</button>
+      <button class="vt" id="vt-mg" onclick="switchView('manager')">Manager view</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manager password overlay -->
+<div class="pin-overlay" id="mgr-pin-overlay">
+  <div class="pin-box">
+    <h2>Manager view</h2>
+    <p>Enter your password to continue</p>
+    <div style="margin-bottom:14px;text-align:left">
+      <div style="position:relative">
+        <input type="password" id="mgr-pwd-input"
+          placeholder="Enter password"
+          style="width:100%;padding:10px 40px 10px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:15px;outline:none;transition:border-color .15s;letter-spacing:2px"
+          oninput="onMgrPwdInput()"
+          onkeydown="onMgrPwdKey(event)"
+        />
+        <button onclick="toggleMgrPwd()"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:16px;padding:2px 4px;line-height:1"
+          id="mgr-pwd-toggle" title="Show/hide password">&#128065;</button>
+      </div>
+    </div>
+    <button class="btn primary" style="width:100%;padding:10px;font-size:14px" onclick="submitMgrPwd()">Unlock</button>
+    <div class="pin-err-msg" id="mgr-pin-err" style="margin-top:8px"></div>
+    <button style="margin-top:10px;font-size:12px;color:#888;background:none;border:none;cursor:pointer;font-family:inherit;" onclick="cancelMgrPin()">Cancel</button>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- MEMBER VIEW -->
+<div class="view active" id="view-member">
+  <div class="form-wrap">
+    <div class="form-hero">
+      <h2>Mark your attendance</h2>
+      <p id="form-date"></p>
+    </div>
+    <div class="card">
+      <div class="fg">
+        <label>Your name</label>
+        <div id="all-submitted-info" style="display:none;background:#EAF3DE;border:1px solid #639922;border-radius:8px;padding:10px 12px;font-size:13px;color:#27500A;font-weight:500;margin-bottom:8px;">
+          All team members have submitted attendance today!
+        </div>
+        <select id="sel-name">
+          <option value="">Select your name...</option>
+        </select>
+        <div style="font-size:11px;color:#888;margin-top:4px;">Only members who have not yet submitted are shown.</div>
+      </div>
+      <div class="fg">
+        <label>Work mode for today</label>
+        <div class="mode-grid">
+          <div class="mc" id="mc-WFO" onclick="pickMode('WFO')">
+            <div class="mc-icon" style="background:#EAF3DE">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="1" y="6" width="16" height="11" rx="1.5" stroke="#27500A" stroke-width="1.5"/><path d="M4 6V4a1 1 0 011-1h8a1 1 0 011 1v2" stroke="#27500A" stroke-width="1.5"/><rect x="7" y="11" width="4" height="6" rx=".5" stroke="#27500A" stroke-width="1.2"/><path d="M5 10h.5M5 13h.5M12.5 10h.5M12.5 13h.5" stroke="#27500A" stroke-width="1.2" stroke-linecap="round"/></svg>
+            </div>
+            <div class="mc-lbl">WFO</div>
+          </div>
+          <div class="mc" id="mc-WFH" onclick="pickMode('WFH')">
+            <div class="mc-icon" style="background:#E6F1FB">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 8.5L9 3l7 5.5" stroke="#0C447C" stroke-width="1.5" stroke-linecap="round"/><path d="M4 7.5V15h10V7.5" stroke="#0C447C" stroke-width="1.5" stroke-linecap="round"/><rect x="6" y="10" width="6" height="4" rx="1" stroke="#0C447C" stroke-width="1.2"/><path d="M6 13.5h6" stroke="#0C447C" stroke-width="1" stroke-linecap="round"/></svg>
+            </div>
+            <div class="mc-lbl">WFH</div>
+          </div>
+        </div>
+      </div>
+      </div>
+    <div style="text-align:center;margin-top:14px">
+      <button class="btn sm" onclick="switchView('manager')">View team status →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGER VIEW -->
+<div class="view" id="view-manager">
+  <div class="stats-grid">
+    <div class="stat"><div class="lbl">In office</div><div class="val" id="s-office">0</div><div class="sub">today</div></div>
+    <div class="stat"><div class="lbl">Working from home</div><div class="val" id="s-wfh">0</div><div class="sub">today</div></div>
+    <div class="stat"><div class="lbl">Total submitted</div><div class="val" id="s-leave">0</div><div class="sub">WFO + WFH today</div></div>
+    <div class="stat"><div class="lbl">Not submitted</div><div class="val" id="s-pending">13</div><div class="sub" id="s-pct">0% submitted</div></div>
+  </div>
+
+  <div class="two-col">
+    <div class="panel">
+      <div class="ph"><h3>Today's team status</h3><span id="today-count">0 / 13</span></div>
+      <div id="member-list"></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><h3>Today's breakdown</h3></div>
+      <div id="breakdown"></div>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid #f0f0f0">
+        <div class="ph" style="margin-bottom:10px"><h3>This week</h3></div>
+        <div id="week-bars"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pending-panel">
+    <div class="ph" style="margin-bottom:0"><h3>Not yet submitted today</h3><span id="pending-count"></span></div>
+    <div class="pchips" id="pending-chips"></div>
+  </div>
+
+  <div class="hist-panel">
+    <!-- Filter row -->
+    <div class="filter-row">
+      <h3 style="font-size:14px;font-weight:600">Attendance history</h3>
+      <div class="filt-btns">
+        <button class="fb active" onclick="setFilt('today',this)">Today</button>
+        <button class="fb" onclick="setFilt('week',this)">This week</button>
+        <button class="fb" onclick="setFilt('all',this)">All</button>
+      </div>
+    </div>
+
+    <!-- Download section -->
+    <div style="background:#f9f9f9;border:1px solid #e5e5e5;border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:12px">Download records</div>
+
+      <!-- By month -->
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">By month</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="dl-month" style="flex:1;min-width:160px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:13px;background:#fff"></select>
+          <button class="btn sm" style="white-space:nowrap" onclick="viewMonth()">View</button>
+          <button class="btn primary" style="padding:8px 14px;white-space:nowrap" onclick="exportMonth()">Download</button>
+        </div>
+      </div>
+
+      <!-- Custom range -->
+      <div style="border-top:1px solid #e5e5e5;padding-top:12px">
+        <div style="font-size:11px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Custom date range</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:220px">
+            <label style="font-size:12px;color:#888;white-space:nowrap">From</label>
+            <input type="date" id="dl-from" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:13px">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:220px">
+            <label style="font-size:12px;color:#888;white-space:nowrap">To</label>
+            <input type="date" id="dl-to" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:13px">
+          </div>
+          <button class="btn sm" style="white-space:nowrap" onclick="viewRange()">View</button>
+          <button class="btn primary" style="padding:8px 14px;white-space:nowrap" onclick="exportRange()">Download</button>
+        </div>
+        <div id="dl-msg" style="font-size:12px;margin-top:6px;display:none;padding:5px 10px;border-radius:6px"></div>
+      </div>
+    </div>
+
+    <!-- View results panel -->
+    <div id="view-results-panel" style="display:none;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:600;color:#1a1a1a" id="view-results-title"></div>
+        <button style="font-size:11px;color:#888;background:none;border:none;cursor:pointer;font-family:inherit;" onclick="closeViewResults()">&#x2715; Close</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Date</th><th>Name</th><th>Work mode</th><th>Time</th></tr></thead>
+          <tbody id="view-results-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- History table -->
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Date</th><th>Name</th><th>Work mode</th><th>Time</th></tr></thead>
+        <tbody id="hist-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ── Manager password config ──
+// To change your password:
+// 1. Go to: https://emn178.github.io/online-tools/sha256.html
+// 2. Type your new password and copy the SHA-256 hash
+// 3. Replace the hash string below with your new hash
+// Current password is: Admin@123
+const MANAGER_PWD_HASH = 'e86f78a8a3caf0b60d8e74e5942aa6d86dc150cd3c03338aef25b7d2d7e3acc7';
+// ─────────────────────────────────────────────────────────
+
+var mgrUnlocked = false;
+var mgrPendingAction = null;
+
+function showMgrPin(onSuccess){
+  if(mgrUnlocked){onSuccess();return;}
+  mgrPendingAction=onSuccess;
+  var inp=document.getElementById('mgr-pwd-input');
+  if(inp){inp.value='';inp.type='password';}
+  var eye=document.getElementById('mgr-pwd-toggle');
+  if(eye) eye.innerHTML='&#128065;';
+  document.getElementById('mgr-pin-err').textContent='';
+  document.getElementById('mgr-pin-overlay').classList.add('active');
+  setTimeout(function(){if(inp) inp.focus();},100);
+}
+
+function hideMgrPin(){
+  document.getElementById('mgr-pin-overlay').classList.remove('active');
+  var inp=document.getElementById('mgr-pwd-input');
+  if(inp) inp.value='';
+}
+
+function cancelMgrPin(){
+  hideMgrPin();
+  mgrPendingAction=null;
+}
+
+function toggleMgrPwd(){
+  var inp=document.getElementById('mgr-pwd-input');
+  var eye=document.getElementById('mgr-pwd-toggle');
+  if(!inp) return;
+  if(inp.type==='password'){
+    inp.type='text';
+    if(eye) eye.innerHTML='&#128064;';
+  } else {
+    inp.type='password';
+    if(eye) eye.innerHTML='&#128065;';
+  }
+}
+
+function onMgrPwdInput(){
+  document.getElementById('mgr-pin-err').textContent='';
+}
+
+function onMgrPwdKey(e){
+  if(e.key==='Enter') submitMgrPwd();
+  if(e.key==='Escape') cancelMgrPin();
+}
+
+async function hashPassword(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+
+async function submitMgrPwd(){
+  var inp=document.getElementById('mgr-pwd-input');
+  var val=inp?inp.value:'';
+  if(!val){
+    document.getElementById('mgr-pin-err').textContent='Please enter the password.';
+    return;
+  }
+  var hashed = await hashPassword(val);
+  if(hashed===MANAGER_PWD_HASH){
+    mgrUnlocked=true;
+    hideMgrPin();
+    document.getElementById('mgr-pin-err').textContent='';
+    if(mgrPendingAction){mgrPendingAction();mgrPendingAction=null;}
+  } else {
+    document.getElementById('mgr-pin-err').textContent='Incorrect password. Try again.';
+    if(inp){inp.value='';inp.focus();}
+  }
+}
+
+const MEMBERS=['Aravindh S','Dhilip Nehru','Kowsalya M','Naveena M','Praveen 2 Kumar','Nandhini Arunachalam','Santhosh P','Vikas Rajasekaran','Thomas S','Gayathri S','Mohammed Rashik A','A M Hemabharathy Mayilsamy','R, Maheshkumar'];
+const INITS=['AS','DN','KM','NM','PK','NA','SP','VR','TS','GS','MR','AH','RM'];
+const BGCOLS=['#EEEDFE','#E1F5EE','#FAEEDA','#E6F1FB','#FCEBEB','#EAF3DE','#EEEDFE','#E6F1FB','#FAEEDA','#E1F5EE','#FCEBEB','#EEEDFE','#E6F1FB'];
+const TCOLS=['#3C3489','#085041','#633806','#0C447C','#791F1F','#27500A','#3C3489','#0C447C','#633806','#085041','#791F1F','#3C3489','#0C447C'];
+const MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+const now=new Date();
+const todayKey=(function(){var m=now.getMonth()+1,d=now.getDate(),y=now.getFullYear();return String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0')+'-'+y;})();
+const todayLabel=now.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+document.getElementById('topdate').textContent=todayLabel;
+const fd=document.getElementById('form-date');
+if(fd) fd.textContent=now.toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
+
+let records=JSON.parse(localStorage.getItem('att_records')||'[]');
+function save(){localStorage.setItem('att_records',JSON.stringify(records));}
+function todayRecs(){return records.filter(r=>r.date===todayKey);}
+function submittedToday(){return todayRecs().map(r=>r.name);}
+
+function isWeekend(){
+  const d=now.getDay();
+  return d===0||d===6;
+}
+
+function refreshDropdown(){
+  const sel=document.getElementById('sel-name');
+  if(!sel) return;
+  const done=submittedToday();
+  sel.innerHTML='<option value="">Select your name...</option>';
+  const info=document.getElementById('all-submitted-info');
+  if(isWeekend()){
+    sel.disabled=true;
+    const sb=document.getElementById('submit-btn');
+    if(sb){sb.disabled=true;sb.textContent='Not available on weekends';}
+    document.querySelectorAll('.mc').forEach(c=>c.style.pointerEvents='none');
+    if(info){
+      info.style.display='block';
+      info.style.background='#FCEBEB';
+      info.style.border='1px solid #E24B4A';
+      info.style.color='#791F1F';
+      info.textContent='Attendance is not available on weekends (Saturday & Sunday).';
+    }
+    return;
+  }
+  sel.disabled=false;
+  const sb=document.getElementById('submit-btn');
+  if(sb){sb.disabled=false;sb.textContent='Submit attendance';}
+  document.querySelectorAll('.mc').forEach(c=>c.style.pointerEvents='');
+  MEMBERS.forEach(m=>{
+    if(!done.includes(m)){
+      const o=document.createElement('option');
+      o.value=m;o.textContent=m;
+      sel.appendChild(o);
+    }
+  });
+  if(info){
+    if(done.length===MEMBERS.length){
+      info.style.display='block';
+      info.style.background='#EAF3DE';
+      info.style.border='1px solid #639922';
+      info.style.color='#27500A';
+      info.textContent='All team members have submitted attendance today!';
+    } else {
+      info.style.display='none';
+    }
+  }
+}
+
+function populateMonthDropdown(){
+  const sel=document.getElementById('dl-month');
+  if(!sel) return;
+  const months=new Set();
+  records.forEach(r=>{
+    const p=r.date.split('/');
+    if(p.length===3) months.add(p[2]+'-'+String(p[1]).padStart(2,'0'));
+  });
+  const cm=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  months.add(cm);
+  const sorted=[...months].sort((a,b)=>b.localeCompare(a));
+  const current=sel.value;
+  sel.innerHTML='';
+  sorted.forEach(ym=>{
+    const parts=ym.split('-');
+    const yr=parts[0];
+    const mo=parts[1];
+    const o=document.createElement('option');
+    o.value=ym;
+    o.textContent=MONTH_NAMES[parseInt(mo)-1]+' '+yr;
+    if(ym===current) o.selected=true;
+    sel.appendChild(o);
+  });
+  if(!sel.value) sel.value=cm;
+}
+
+function setDefaultDateRange(){
+  const y=now.getFullYear();
+  const mo=String(now.getMonth()+1).padStart(2,'0');
+  const lastDay=new Date(y,now.getMonth()+1,0).getDate();
+  const dlFrom=document.getElementById('dl-from');
+  const dlTo=document.getElementById('dl-to');
+  if(dlFrom) dlFrom.value=y+'-'+mo+'-01';
+  if(dlTo) dlTo.value=y+'-'+mo+'-'+String(lastDay).padStart(2,'0');
+}
+
+function switchView(v){
+  if(v==='manager'){
+    showMgrPin(function(){
+      _doSwitchView('manager');
+    });
+    return;
+  }
+  _doSwitchView(v);
+}
+
+function _doSwitchView(v){
+  ['member','manager'].forEach(function(id){
+    const el=document.getElementById('view-'+id);
+    if(el) el.className='view'+(id===v?' active':'');
+  });
+  document.getElementById('vt-m').className='vt'+(v==='member'?' active':'');
+  document.getElementById('vt-mg').className='vt'+(v==='manager'?' active':'');
+  if(v==='manager'){
+    populateMonthDropdown();
+    setDefaultDateRange();
+  }
+}
+
+function pickMode(m){
+  if(isWeekend()) return;
+  window._selMode=m;
+  ['WFO','WFH'].forEach(function(x){
+    const el=document.getElementById('mc-'+x);
+    if(el) el.className='mc'+(x===m?' sel-'+m:'');
+  });
+}
+
+function doSubmit(){
+  if(isWeekend()){showToast('err','Attendance is not available on weekends.');return;}
+  const name=document.getElementById('sel-name').value;
+  const mode=window._selMode||'';
+  if(!name){showToast('err','Please select your name.');return;}
+  if(!mode){showToast('err','Please select your work mode.');return;}
+  if(submittedToday().includes(name)){
+    showToast('err','You have already submitted attendance today.');
+    refreshDropdown();return;
+  }
+  const timeStr=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+  records.push({date:todayKey,name:name,mode:mode,time:timeStr});
+  save();renderAll();refreshDropdown();
+  showToast('ok','Attendance recorded - '+name+', '+mode+'. Thank you!');
+  window._selMode='';
+  ['WFO','WFH'].forEach(function(x){
+    const el=document.getElementById('mc-'+x);
+    if(el) el.className='mc';
+  });
+}
+
+function showToast(type,msg){
+  const t=document.getElementById('form-toast');
+  t.className='toast '+type;t.textContent=msg;t.style.display='block';
+  clearTimeout(window._toastTimer);
+  window._toastTimer=setTimeout(function(){t.style.display='none';},4000);
+}
+
+function buildCSV(data){
+  const header=['Date','Name','Work Mode','Submitted At'];
+  const allRows=[header].concat(data);
+  const lines=allRows.map(function(r){
+    return r.map(function(c){
+      return '"'+String(c||'').replace(/"/g,'""')+'"';
+    }).join(',');
+  });
+  return lines.join('\r\n');
+}
+
+function triggerCSV(csv,filename){
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function showDlMsg(msg,ok){
+  const el=document.getElementById('dl-msg');
+  if(!el) return;
+  el.style.display='block';
+  el.style.background=ok?'#EAF3DE':'#FCEBEB';
+  el.style.color=ok?'#27500A':'#791F1F';
+  el.textContent=msg;
+  setTimeout(function(){el.style.display='none';},4000);
+}
+
+function doExport(){
+  if(records.length===0){showDlMsg('No records to export.',false);return;}
+  const sorted=records.slice().sort(function(a,b){
+    return a.date.localeCompare(b.date)||a.time.localeCompare(b.time);
+  });
+  const data=sorted.map(function(r){return[r.date,r.name,r.mode,r.time];});
+  triggerCSV(buildCSV(data),'attendance_all.csv');
+  showDlMsg('Downloaded '+sorted.length+' records.',true);
+}
+
+function exportMonth(){
+  const sel=document.getElementById('dl-month');
+  if(!sel||!sel.value){showDlMsg('Please select a month first.',false);return;}
+  const parts=sel.value.split('-');
+  const yr=parts[0];
+  const mo=parts[1];
+  const filtered=records.filter(function(r){
+    const p=r.date.split('-');
+    return p.length===3&&p[2]===yr&&String(p[0]).padStart(2,'0')===mo;
+  });
+  if(filtered.length===0){
+    showDlMsg('No records for '+MONTH_NAMES[parseInt(mo)-1]+' '+yr+'.',false);return;
+  }
+  const sorted=filtered.slice().sort(function(a,b){
+    return a.date.localeCompare(b.date)||a.time.localeCompare(b.time);
+  });
+  const data=sorted.map(function(r){return[r.date,r.name,r.mode,r.time];});
+  triggerCSV(buildCSV(data),'attendance_'+MONTH_NAMES[parseInt(mo)-1]+'_'+yr+'.csv');
+  showDlMsg('Downloaded '+filtered.length+' records for '+MONTH_NAMES[parseInt(mo)-1]+' '+yr+'.',true);
+}
+
+function exportRange(){
+  const dlFrom=document.getElementById('dl-from');
+  const dlTo=document.getElementById('dl-to');
+  const fromVal=dlFrom?dlFrom.value:'';
+  const toVal=dlTo?dlTo.value:'';
+  if(!fromVal||!toVal){showDlMsg('Please select both From and To dates.',false);return;}
+  if(fromVal>toVal){showDlMsg('From date must be before or equal to To date.',false);return;}
+  // Parse picker value YYYY-MM-DD into local date to avoid UTC offset issues
+  const fp=fromVal.split('-');
+  const tp=toVal.split('-');
+  const fromLocal=new Date(parseInt(fp[0]),parseInt(fp[1])-1,parseInt(fp[2]),0,0,0,0);
+  const toLocal=new Date(parseInt(tp[0]),parseInt(tp[1])-1,parseInt(tp[2]),23,59,59,999);
+  const filtered=records.filter(function(r){
+    const p=r.date.split('-');
+    if(p.length!==3) return false;
+    const d=new Date(parseInt(p[2]),parseInt(p[0])-1,parseInt(p[1]),0,0,0,0);
+    return d>=fromLocal&&d<=toLocal;
+  });
+  if(filtered.length===0){showDlMsg('No records found for the selected date range.',false);return;}
+  const sorted=filtered.slice().sort(function(a,b){
+    return a.date.localeCompare(b.date)||a.time.localeCompare(b.time);
+  });
+  const data=sorted.map(function(r){return[r.date,r.name,r.mode,r.time];});
+  triggerCSV(buildCSV(data),'attendance_'+fromVal+'_to_'+toVal+'.csv');
+  showDlMsg('Downloaded '+filtered.length+' records.',true);
+}
+
+function renderAll(){
+  const tr=todayRecs();
+  const submitted=submittedToday();
+  const pending=MEMBERS.filter(function(m){return!submitted.includes(m);});
+  const wfo=tr.filter(function(r){return r.mode==='WFO';}).length;
+  const wfh=tr.filter(function(r){return r.mode==='WFH';}).length;
+  const pct=Math.round((submitted.length/MEMBERS.length)*100);
+
+  document.getElementById('s-office').textContent=wfo;
+  document.getElementById('s-wfh').textContent=wfh;
+  document.getElementById('s-leave').textContent=wfo+wfh;
+  document.getElementById('s-pending').textContent=pending.length;
+  document.getElementById('s-pct').textContent=pct+'% submitted';
+  document.getElementById('today-count').textContent=submitted.length+' / '+MEMBERS.length+' submitted';
+
+  document.getElementById('member-list').innerHTML=MEMBERS.map(function(m,i){
+    const rec=tr.find(function(r){return r.name===m;});
+    return '<div class="mrow">'
+      +'<div class="av" style="background:'+BGCOLS[i]+';color:'+TCOLS[i]+'">'+INITS[i]+'</div>'
+      +'<div class="mname">'+m+'</div>'
+      +(rec
+        ?'<span class="mtime">'+rec.time+'</span><span class="pill p-'+rec.mode+'">'+rec.mode+'</span>'
+        :'<span class="pill p-Pending">Pending</span>')
+      +'</div>';
+  }).join('');
+
+  document.getElementById('breakdown').innerHTML=[
+    {l:'WFO',n:wfo,c:'#639922'},
+    {l:'WFH',n:wfh,c:'#378ADD'},
+    {l:'Pending',n:pending.length,c:'#ccc'},
+  ].map(function(b){
+    return '<div class="bar-row">'
+      +'<div class="bar-meta"><span>'+b.l+'</span><strong>'+b.n+'</strong></div>'
+      +'<div class="bar-track"><div class="bar-fill" style="width:'+Math.round((b.n/MEMBERS.length)*100)+'%;background:'+b.c+'"></div></div>'
+      +'</div>';
+  }).join('');
+
+  const days=['Mon','Tue','Wed','Thu','Fri'];
+  document.getElementById('week-bars').innerHTML=days.map(function(d,i){
+    const diff=i+1-now.getDay();
+    const dt=new Date(now);dt.setDate(dt.getDate()+diff);
+    const k=(function(){var m=dt.getMonth()+1,d=dt.getDate(),y=dt.getFullYear();return String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0')+'-'+y;})();
+    const dc=records.filter(function(r){return r.date===k;}).length;
+    const p=Math.round((dc/MEMBERS.length)*100);
+    const future=diff>0;
+    return '<div class="bar-row">'
+      +'<div class="bar-meta"><span>'+d+'</span><strong style="color:'+(future?'#bbb':'#1a1a1a')+'">'+(future?'&mdash;':p+'%')+'</strong></div>'
+      +'<div class="bar-track"><div class="bar-fill" style="width:'+(future?0:p)+'%;background:#6264A7"></div></div>'
+      +'</div>';
+  }).join('');
+
+  document.getElementById('pending-count').textContent=pending.length+' members';
+  document.getElementById('pending-chips').innerHTML=pending.length===0
+    ?'<div class="all-done">All '+MEMBERS.length+' members have submitted today!</div>'
+    :pending.map(function(p){return'<div class="pchip">'+p+'</div>';}).join('');
+
+}
+
+var histFilt='today';
+function renderHist(){
+  var filtered=histFilt==='today'?records.filter(function(r){return r.date===todayKey;})
+    :histFilt==='week'?records.filter(function(r){
+        var p=r.date.split('-');
+        var d=new Date(parseInt(p[2]),parseInt(p[0])-1,parseInt(p[1]));
+        return (now-d)/864e5<7&&d<=now;
+      })
+    :records;
+  var sorted=filtered.slice().sort(function(a,b){
+    return b.date.localeCompare(a.date)||b.time.localeCompare(a.time);
+  });
+  document.getElementById('hist-body').innerHTML=sorted.length===0
+    ?'<tr><td colspan="4" style="text-align:center;color:#888;padding:16px">No records found</td></tr>'
+    :sorted.map(function(r){
+      return '<tr>'
+        +'<td>'+r.date+'</td>'
+        +'<td><strong>'+r.name+'</strong></td>'
+        +'<td><span class="pill p-'+r.mode+'">'+r.mode+'</span></td>'
+        
+        +'<td style="color:#888">'+r.time+'</td>'
+        +'</tr>';
+    }).join('');
+}
+
+function setFilt(f,btn){
+  histFilt=f;
+  document.querySelectorAll('.fb').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  renderHist();
+}
+
+renderAll();
+refreshDropdown();
+
+function viewMonth(){
+  const sel=document.getElementById('dl-month');
+  if(!sel||!sel.value){showDlMsg('Please select a month first.',false);return;}
+  const parts=sel.value.split('-');
+  const yr=parts[0];
+  const mo=parts[1];
+  const filtered=records.filter(function(r){
+    const p=r.date.split('-');
+    return p.length===3&&p[2]===yr&&String(p[0]).padStart(2,'0')===mo;
+  });
+  const title=MONTH_NAMES[parseInt(mo)-1]+' '+yr;
+  if(filtered.length===0){
+    showDlMsg('No records found for '+title+'.',false);
+    closeViewResults();
+    return;
+  }
+  const sorted=filtered.slice().sort(function(a,b){
+    return a.date.localeCompare(b.date)||a.time.localeCompare(b.time);
+  });
+  renderViewResults(sorted,'Records for '+title+' ('+sorted.length+' entries)');
+}
+
+function viewRange(){
+  const dlFrom=document.getElementById('dl-from');
+  const dlTo=document.getElementById('dl-to');
+  const fromVal=dlFrom?dlFrom.value:'';
+  const toVal=dlTo?dlTo.value:'';
+  if(!fromVal||!toVal){showDlMsg('Please select both From and To dates.',false);return;}
+  if(fromVal>toVal){showDlMsg('From date must be before or equal to To date.',false);return;}
+  // Parse picker value YYYY-MM-DD into local date to avoid UTC offset issues
+  const fp=fromVal.split('-');
+  const tp=toVal.split('-');
+  const fromLocal=new Date(parseInt(fp[0]),parseInt(fp[1])-1,parseInt(fp[2]),0,0,0,0);
+  const toLocal=new Date(parseInt(tp[0]),parseInt(tp[1])-1,parseInt(tp[2]),23,59,59,999);
+  const filtered=records.filter(function(r){
+    const p=r.date.split('-');
+    if(p.length!==3) return false;
+    const d=new Date(parseInt(p[2]),parseInt(p[0])-1,parseInt(p[1]),0,0,0,0);
+    return d>=fromLocal&&d<=toLocal;
+  });
+  if(filtered.length===0){
+    showDlMsg('No records found for the selected date range.',false);
+    closeViewResults();
+    return;
+  }
+  const sorted=filtered.slice().sort(function(a,b){
+    return a.date.localeCompare(b.date)||a.time.localeCompare(b.time);
+  });
+  renderViewResults(sorted,'Records from '+fromVal+' to '+toVal+' ('+sorted.length+' entries)');
+}
+
+function renderViewResults(rows,title){
+  document.getElementById('view-results-title').textContent=title;
+  document.getElementById('view-results-body').innerHTML=rows.map(function(r){
+    return '<tr>'
+      +'<td>'+r.date+'</td>'
+      +'<td><strong>'+r.name+'</strong></td>'
+      +'<td><span class="pill p-'+r.mode+'">'+r.mode+'</span></td>'
+      +'<td style="color:#888">'+r.time+'</td>'
+      +'</tr>';
+  }).join('');
+  document.getElementById('view-results-panel').style.display='block';
+  document.getElementById('view-results-panel').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function closeViewResults(){
+  document.getElementById('view-results-panel').style.display='none';
+  document.getElementById('view-results-body').innerHTML='';
+}
+
+
+
+</script>
+</body>
+</html>
